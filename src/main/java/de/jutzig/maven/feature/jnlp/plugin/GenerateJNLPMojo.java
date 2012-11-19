@@ -49,7 +49,7 @@ public class GenerateJNLPMojo
 	/**
      * Location of the file.
      *
-     * @parameter expression= "${genjnlp.featurejar}" default-value= "target/site/features/${project.artifactId}_${project.version}.jar"
+     * @parameter expression= "${generate-jnlp.featureJar}" default-value= "target/site/features/${project.artifactId}_${project.version}.jar"
      * @required
      */
     private File featureJar;
@@ -73,17 +73,32 @@ public class GenerateJNLPMojo
     /**
      * the vendor as it appear in the JNLP
      *
-     * @parameter expression= "${genjnlp.codebase}" default-value= "${project.url}"
+     * @parameter expression= "${generate-jnlp.codebase}" default-value= "${project.url}"
      * @required
      */
     private String codebase;
 
     /**
      * @parameter default-value="${project.packaging}"
-     * @parameter required
-     * @readonly
+     * @required
      */
     private String packaging;
+    
+    /**
+     * Describes an ordered list of version ranges to use.
+     * 
+     * @parameter expression="${generate-jnlp.javaVersion}" default-value="1.6+"
+     * @required
+     */
+    private String javaVersion;
+    
+    /**
+     * Marks the JNLP runnable alone.
+     * 
+     * @parameter expression="${generate-jnlp.isStandalone}" default-value="false"
+     * @required
+     */
+    private boolean isStandalone;
 
     public void execute()
         throws MojoExecutionException
@@ -148,6 +163,8 @@ public class GenerateJNLPMojo
         {
             Element root = feature.getDocumentElement();
             Document jnlp = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+            jnlp.setXmlStandalone(isStandalone);
+            
             Element jnlpElement = jnlp.createElement("jnlp");
             jnlp.appendChild(jnlpElement);
             jnlpElement.setAttribute("spec", "1.0+");
@@ -181,8 +198,12 @@ public class GenerateJNLPMojo
 
             Element j2se = jnlp.createElement("j2se");
             resources.appendChild(j2se);
-            j2se.setAttribute("version", "1.6+");
+            j2se.setAttribute("version", javaVersion);
 
+            Element jarResources = jnlp.getElementById("binary_resources");
+            jarResources = jnlp.createElement("resources");
+            jnlpElement.appendChild(jarResources);
+            
             NodeList plugins = root.getElementsByTagName("plugin");
             int size = plugins.getLength();
             for (int i = 0; i < size; i++)
@@ -193,18 +214,18 @@ public class GenerateJNLPMojo
                 // if an arch is set, we must add several alternatives names for the same thing :-(
                 if (arch.equals("x86_64"))
                 {
-                    createResourceElement(plugin, jnlp, jnlpElement, "x86_64");
-                    createResourceElement(plugin, jnlp, jnlpElement, "amd64");
+                    createResourceElement(plugin, jarResources, jnlp, jnlpElement, "x86_64");
+                    createResourceElement(plugin, jarResources, jnlp, jnlpElement, "amd64");
 
                 }
                 else if (arch.equals("x86"))
                 {
-                    createResourceElement(plugin, jnlp, jnlpElement, "x86");
-                    createResourceElement(plugin, jnlp, jnlpElement, "i386");
-                    createResourceElement(plugin, jnlp, jnlpElement, "i686");
+                    createResourceElement(plugin, jarResources, jnlp, jnlpElement, "x86");
+                    createResourceElement(plugin, jarResources, jnlp, jnlpElement, "i386");
+                    createResourceElement(plugin, jarResources, jnlp, jnlpElement, "i686");
                 }
                 else
-                    createResourceElement(plugin, jnlp, jnlpElement, null);
+                    createResourceElement(plugin, jarResources, jnlp, jnlpElement, null);
             }
 
             return jnlp;
@@ -221,14 +242,13 @@ public class GenerateJNLPMojo
     }
 
 
-    private void createResourceElement(Element plugin, Document jnlp, Node jnlpElement, String arch)
+    private void createResourceElement(Element plugin, Element resource, Document jnlp, Node jnlpElement, String arch)
     {
         String version = plugin.getAttribute("version");
         if (version == null || version.length() == 0 || version.equals("0.0.0"))
             // this plugin is not included for some reason. We must skip
             return;
-        Element resource = jnlp.createElement("resources");
-        jnlpElement.appendChild(resource);
+        
         Element jar = jnlp.createElement("jar");
         resource.appendChild(jar);
         jar.setAttribute("href",
