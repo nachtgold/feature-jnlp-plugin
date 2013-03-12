@@ -19,6 +19,7 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.TransformerFactoryConfigurationError;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
@@ -108,12 +109,17 @@ public class GenerateJNLPMojo
     		return;
     	}
 
+        Document feature = parseFeature(featureJar);
+        Document jnlpDoc = createJNLP(feature);
+        writeJNLP(featureJar, jnlpDoc);
+    }
+
+
+    private void writeJNLP(File featureJar, Document jnlpDoc) throws TransformerFactoryConfigurationError, MojoExecutionException {
+
         File jnlp = new File(featureJar.getParentFile(),
                              featureJar.getName().substring(0, featureJar.getName().length() - 3) + "jnlp");
-
-        Document feature = parseFeature(featureJar);
-        // NodeList plugins = feature.getElementsByTagName("plugin");
-        Document jnlpDoc = createJNLP(feature);
+        
         Writer out = null;
         try
         {
@@ -204,6 +210,8 @@ public class GenerateJNLPMojo
             jarResources = jnlp.createElement("resources");
             jnlpElement.appendChild(jarResources);
             
+            parseIncludedFeatures(root, jnlp, jarResources);
+            
             NodeList plugins = root.getElementsByTagName("plugin");
             int size = plugins.getLength();
             for (int i = 0; i < size; i++)
@@ -238,6 +246,39 @@ public class GenerateJNLPMojo
         catch (ParserConfigurationException e)
         {
             throw new MojoExecutionException("Parser Configuration Error",e);
+        }
+    }
+
+    /**
+     * Generates JNLP files for included features (&lt;includes&gt; tag).
+     * 
+     * @param currentEclipseFeature
+     * @param targetJnlp 
+     * @param targetJnlpResourcesGroup
+     * @throws MojoExecutionException
+     * @throws TransformerFactoryConfigurationError
+     */
+    private void parseIncludedFeatures(Element currentEclipseFeature, Document targetJnlp, Element targetJnlpResourcesGroup) throws MojoExecutionException, TransformerFactoryConfigurationError {
+        NodeList features = currentEclipseFeature.getElementsByTagName("includes");
+        for (int i = 0; i < features.getLength(); i++)
+        {
+            Element plugin = (Element) features.item(i);
+            String includedFeature = plugin.getAttribute("id");
+            String includedVersion = plugin.getAttribute("version");
+            File includedEclipseFeature = new File(featureJar.getParent(), includedFeature + "_" + includedVersion + ".jar");
+            
+            if(includedEclipseFeature.exists()) {
+                Document feature = parseFeature(includedEclipseFeature);
+                Document jnlp = createJNLP(feature);
+                writeJNLP(includedEclipseFeature, jnlp);
+
+                Element extensionResources = targetJnlp.createElement("extension");
+                extensionResources.setAttribute("href", "features/" + includedEclipseFeature.getName());
+                targetJnlpResourcesGroup.appendChild(extensionResources);
+                
+            } else {
+                getLog().warn("Unresolved Include: " + includedEclipseFeature.getAbsolutePath());
+            }
         }
     }
 
