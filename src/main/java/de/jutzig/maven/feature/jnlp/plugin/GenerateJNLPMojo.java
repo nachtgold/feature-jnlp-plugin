@@ -531,15 +531,19 @@ public class GenerateJNLPMojo extends AbstractMojo {
 		return featureFilename.substring(0, extension) + ".jnlp";
 	}
 
-	private final class BundleSymbolicNameFileFilter implements FilenameFilter {
+	protected final class BundleSymbolicNameFileFilter implements FilenameFilter {
 		private final String bsn;
 
-		private BundleSymbolicNameFileFilter(String bsn) {
+		BundleSymbolicNameFileFilter(String bsn) {
 			this.bsn = bsn;
 		}
 
 		public boolean accept(File dir, String name) {
-			return name.startsWith(bsn);
+			if(name.startsWith(bsn)) {
+				String versionAndExtension = name.substring(bsn.length(), name.length());
+				return (versionAndExtension.equals(".jar") || (versionAndExtension.length() > 0 && versionAndExtension.charAt(0) == '_'));
+			}
+			return false;
 		}
 	}
 

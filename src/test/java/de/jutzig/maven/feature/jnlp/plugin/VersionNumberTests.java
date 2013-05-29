@@ -1,6 +1,8 @@
 package de.jutzig.maven.feature.jnlp.plugin;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,7 +14,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 /**
- * Der Testfall überprüft, ob das Plugin die Versionnummern aus den Namen der
+ * Der Testfall Ã¼berprÃ¼ft, ob das Plugin die Versionnummern aus den Namen der
  * Libs und Features schneiden kann.
  */
 @RunWith(value = Parameterized.class)
@@ -21,13 +23,14 @@ public class VersionNumberTests extends GenerateJNLPMojo {
 	private String expectedFilename;
 	private String givenFilename;
 	private String expectedJnlp;
+	private String bsn;
 
 	static {
 		testCases.addAll(Arrays.asList(new String[][] {
-				{ "javax.wsdl_1.6.2.v201012040545.jar", "javax.wsdl.jar", "javax.wsdl.jnlp" },
+				{ "javax.wsdl_1.6.2.v201012040545.jar", "javax.wsdl.jar", "javax.wsdl.jnlp", "javax.wsdl" },
 				{ "org.eclipse.core.databinding.property_1.4.100.v20120523-1955.jar", "org.eclipse.core.databinding.property.jar",
-						"org.eclipse.core.databinding.property.jnlp" },
-				{ "org.junit_4.10.0.v4_10_0_v20120426-0900.jar", "org.junit.jar", "org.junit.jnlp" } }));
+						"org.eclipse.core.databinding.property.jnlp", "org.eclipse.core.databinding.property" },
+				{ "org.junit_4.10.0.v4_10_0_v20120426-0900.jar", "org.junit.jar", "org.junit.jnlp", "org.junit" } }));
 	}
 
 	@Parameters
@@ -35,10 +38,11 @@ public class VersionNumberTests extends GenerateJNLPMojo {
 		return testCases;
 	}
 
-	public VersionNumberTests(String givenFilename, String expectedFilename, String expectedJnlp) {
+	public VersionNumberTests(String givenFilename, String expectedFilename, String expectedJnlp, String bsn) {
 		this.expectedFilename = expectedFilename;
 		this.givenFilename = givenFilename;
 		this.expectedJnlp = expectedJnlp;
+		this.bsn = bsn;
 	}
 
 	@Test
@@ -61,5 +65,16 @@ public class VersionNumberTests extends GenerateJNLPMojo {
 	public void testJnlpNaming() {
 		this.ressourceNamesWithoutVersion = true;
 		assertEquals(expectedJnlp, getJnlpFileName(givenFilename));
+	}
+
+	@Test
+	public void testFileFilter() {
+		BundleSymbolicNameFileFilter filter = new BundleSymbolicNameFileFilter(bsn);
+		 assertTrue(filter.accept(null, expectedFilename));
+		 assertTrue(filter.accept(null, givenFilename));
+		 assertFalse(filter.accept(null, expectedJnlp));
+		 assertFalse(filter.accept(null, bsn));
+		 assertFalse(filter.accept(null, bsn + ".test.jar"));
+		 assertFalse(filter.accept(null, "test.jar"));
 	}
 }
